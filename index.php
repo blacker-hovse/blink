@@ -97,7 +97,7 @@ if (@$_REQUEST['u']) {
 print_head('Blink');
 ?>	</head>
 	<body>
-	    <div id="main">
+		<div id="main">
 			<h1>Blink</h1>
 <?
 $subtitles = array(
