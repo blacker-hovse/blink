@@ -110,8 +110,6 @@ $subtitles = array(
 	'Short and Sweet',
 	'Shortens Links',
 	'Size Matters',
-	'Suck it TinyURL',
-	"Vive l'Anarchie",
 	'Welcome FBI'
 );
 
