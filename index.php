@@ -10,7 +10,7 @@ function blink_long($short) {
 		':short' => $short
 	));
 
-	return $result->fetchColumn();
+	return $result->fetch(PDO::FETCH_COLUMN);
 }
 
 function blink_short($long) {
@@ -23,10 +23,10 @@ function blink_short($long) {
 		':long' => $long
 	));
 
-	$short = $result->fetchColumn();
+	$short = $result->fetch(PDO::FETCH_COLUMN);
 
 	if (!$short) {
-		for ($i = (int) log((int) $pdo->query('SELECT COUNT(*) FROM `blink`')->fetchColumn() + 1, strlen($alphabet)) + 1; $pdo->query("SELECT COUNT(*) FROM `blink` WHERE LENGTH(`short`) > $i")->fetchColumn(); $i++);
+		for ($i = (int) log((int) $pdo->query('SELECT COUNT(*) FROM `blink`')->fetch(PDO::FETCH_COLUMN) + 1, strlen($alphabet)) + 1; $pdo->query("SELECT COUNT(*) FROM `blink` WHERE LENGTH(`short`) > $i")->fetch(PDO::FETCH_COLUMN); $i++);
 		$result = $pdo->prepare('SELECT COUNT(*) FROM `blink` WHERE `short` = :short');
 
 		do {
@@ -35,7 +35,7 @@ function blink_short($long) {
 			$result->execute(array(
 				':short' => $short
 			));
-		} while ($result->fetchColumn());
+		} while ($result->fetch(PDO::FETCH_COLUMN));
 
 		$result = $pdo->prepare('INSERT INTO `blink` (`long`, `short`) VALUES (:long, :short)');
 
