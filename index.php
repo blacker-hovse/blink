@@ -116,7 +116,7 @@ if (@$_REQUEST['u']) {
       curl_setopt($ch, CURLOPT_URL, 'https://www.google.com/recaptcha/api/siteverify');
       $response = json_decode(curl_exec($ch));
 
-      if ($url = blink_long($_GET['u'])) {
+      if ($response and $url = blink_long($_GET['u'])) {
         blink_view($_GET['u']);
         die($url);
       } else {
@@ -165,16 +165,14 @@ EOF;
 
 if (@$_GET['u']) {
   echo <<<EOF
-      <script type="text/javascript" src="https://www.google.com/recaptcha/api.js?render=$config[key]"></script>
+      <div id="captcha"></div>
       <script type="text/javascript">// <![CDATA[
-        grecaptcha.ready(function() {
-          grecaptcha.execute('$config[key]', {action: 'homepage'}).then(function(token) {
-            $.get('./', {u: '$_GET[u]', token: token}, function(url) {
-              window.location = url;
-            });
-          });
-        });
+        var onloadCallback = function() {
+          grecaptcha.render('captcha', {'sitekey': '$config[key]'});
+        };
       // ]]></script>
+      <script type="text/javascript" src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit" async defer></script>
+
 
 EOF;
 } elseif (isset($_GET['list'])) {
