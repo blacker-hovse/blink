@@ -1,4 +1,13 @@
 <?
+$config = array(
+  'alphabet' => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+  'human_db' => __DIR__ . '/blunk.db',
+  'human_path' => '/blunk/',
+  'mole_db' => __DIR__ . '/blink.db',
+  'mole_path' => '/blink/',
+);
+
+include(__DIR__ . '/config.php');
 include(__DIR__ . '/../lib/include.php');
 
 function blink_long($short) {
@@ -13,8 +22,7 @@ function blink_long($short) {
   return $result->fetch(PDO::FETCH_COLUMN);
 }
 
-function blink_short($long) {
-  global $alphabet;
+function blink_short($long, $alphabet) {
   global $pdo;
 
   $result = $pdo->prepare('SELECT `short` FROM `blink` WHERE `long` = :long');
@@ -58,8 +66,19 @@ function blink_view($short) {
   ));
 }
 
-$alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-$db = 'blink.db';
+if (@$_POST['type'] == 'human' or strpos($_SERVER['REQUEST_URI'], $config['human_path']) === 0) {
+  if ($_SERVER['REQUEST_METHOD'] == 'GET' and !isset($_GET['u'])) {
+    header('Location: ' . $config['mole_path']);
+    die();
+  }
+
+  $db = $config['human_db'];
+  $path = $config['human_path'];
+} else {
+  $db = $config['mole_db'];
+  $path = $config['mole_path'];
+}
+
 $create = !file_exists($db);
 $short = false;
 $pdo = new PDO('sqlite:' . $db);
@@ -76,10 +95,34 @@ EOF
 }
 
 if (@$_REQUEST['u']) {
-  if (@$_GET['u'] and $url = blink_long($_GET['u'])) {
-    blink_view($_GET['u']);
-    header('Location: ' . $url);
-    die();
+  if (@$_GET['u']) {
+    $success = false;
+
+    if ($path == $config['mole_path']) {
+      $success = true;
+    } elseif (isset($_GET['token'])) {
+      $ch = curl_init();
+
+      $fields = array(
+        'response' => $_GET['token'],
+        'secret' => $config['secret']
+      );
+
+      curl_setopt($ch, CURLOPT_POST, true);
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $fields);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+      curl_setopt($ch, CURLOPT_URL, 'https://www.google.com/recaptcha/api/siteverify');
+      $response = json_decode(curl_exec($ch));
+      $success = $response['success'];
+    }
+
+    if ($success) {
+      if ($url = blink_long($_GET['u'])) {
+        blink_view($_GET['u']);
+        header('Location: ' . $url);
+        die();
+      }
+    }
   }
 
   if (@$_POST['u'] and $url = filter_input(INPUT_POST, 'u', FILTER_SANITIZE_URL)) {
@@ -87,7 +130,7 @@ if (@$_REQUEST['u']) {
       $url = 'http://' . $url;
     }
 
-    $short = blink_short($url);
+    $short = blink_short($url, $config['alphabet']);
   }
 }
 ?><!DOCTYPE html>
@@ -120,13 +163,27 @@ echo <<<EOF
 
 EOF;
 
-if (isset($_GET['list'])) {
+if (@$_GET['u']) {
+  echo <<<EOF
+      <script type="text/javascript" src="https://www.google.com/recaptcha/api.js?render=$config[key]"></script>
+      <script type="text/javascript">// <![CDATA[
+        grecaptcha.ready(function() {
+          grecaptcha.execute('$config[key]', {action: 'homepage'}).then(function(token) {
+            $.get('./', {u: '$_GET[u]', token: token}, function(url) {
+              window.location = url;
+            });
+          });
+        });
+      // ]]></script>
+
+EOF;
+} elseif (isset($_GET['list'])) {
   echo <<<EOF
       <div>
         <p>All URLs are listed below.</p>
-        <table>
+        <table class="table">
           <tr>
-            <th>Long URL</th>
+            <th style="width: 80%;">Long URL</th>
             <th>Short URL</th>
             <th>Hits</th>
           </tr>
@@ -157,24 +214,39 @@ EOF;
   $options = '';
 
   if ($short) {
-    $url = 'http';
-
-    if (@$_SERVER['HTTPS']) {
-      $url .= 's';
-    }
-
-    $url .= "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
-
-    if ($i = strpos($url, '?')) {
-      $url = substr($url, 0, $i);
-    }
-
-    $options = " value=\"$url?u=$short\" readonly=\"readonly\"";
+    $s = @$_SERVER['HTTPS'] ? 's' : '';
+    $label = 'Short URL';
+    $options = " value=\"http$s://$_SERVER[HTTP_HOST]$path?u=$short\" readonly=\"readonly\"";
+  } else {
+    $label = 'Long URL';
+    $options = <<<EOF
+ />
+          </div>
+        </div>
+        <div class="form-control">
+          <div class="input-group">
+            <input type="radio" id="mole" name="type" value="mole" checked="checked" />
+            <label for="mole">Restrict by credentials (moles only)</label>
+          </div>
+          <div class="input-group">
+            <input type="radio" id="human" name="type" value="human" />
+            <label for="human">Restrict by CAPTCHA (humans only)</label>
+          </div>
+        </div>
+        <div class="form-control">
+          <div class="input-group">
+            <input type="submit" value="Shorten"
+EOF;
   }
 
   echo <<<EOF
       <form action="./" method="post">
-        <input type="text" name="u"$options />
+        <div class="form-control">
+          <label for="u">$label</label>
+          <div class="input-group">
+            <input type="text" id="u" name="u"$options />
+          </div>
+        </div>
       </form>
 
 EOF;
