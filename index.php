@@ -113,7 +113,7 @@ if (@$_REQUEST['u']) {
       curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
       curl_setopt($ch, CURLOPT_URL, 'https://www.google.com/recaptcha/api/siteverify');
       $response = json_decode(curl_exec($ch));
-      $success = $response['success'];
+      $success = $response->success;
     }
 
     if ($success) {
