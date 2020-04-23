@@ -96,10 +96,12 @@ EOF
 
 if (@$_REQUEST['u']) {
   if (@$_GET['u']) {
-    $success = false;
-
     if ($path == $config['mole_path']) {
-      $success = true;
+      if ($url = blink_long($_GET['u'])) {
+        blink_view($_GET['u']);
+        header('Location: ' . $url);
+        die();
+      }
     } elseif (isset($_GET['token'])) {
       $ch = curl_init();
 
@@ -113,14 +115,12 @@ if (@$_REQUEST['u']) {
       curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
       curl_setopt($ch, CURLOPT_URL, 'https://www.google.com/recaptcha/api/siteverify');
       $response = json_decode(curl_exec($ch));
-      $success = $response->success;
-    }
 
-    if ($success) {
       if ($url = blink_long($_GET['u'])) {
         blink_view($_GET['u']);
-        header('Location: ' . $url);
-        die();
+        die($url);
+      } else {
+        die('');
       }
     }
   }
