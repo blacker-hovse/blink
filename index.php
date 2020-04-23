@@ -120,7 +120,7 @@ if (@$_REQUEST['u']) {
         blink_view($_GET['u']);
         die($url);
       } else {
-        die('');
+        die('/bonus/');
       }
     }
   }
@@ -167,8 +167,14 @@ if (@$_GET['u']) {
   echo <<<EOF
       <div id="captcha"></div>
       <script type="text/javascript">// <![CDATA[
+        var verifyCallback = function(token) {
+          $.get('./', {u: '$_GET[u]', token: token}, function(url) {
+            window.location = url;
+          });
+        };
+
         var onloadCallback = function() {
-          grecaptcha.render('captcha', {'sitekey': '$config[key]'});
+          grecaptcha.render('captcha', {'callback': verifyCallback, 'sitekey': '$config[key]'});
         };
       // ]]></script>
       <script type="text/javascript" src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit" async defer></script>
