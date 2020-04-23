@@ -137,11 +137,11 @@ if (@$_REQUEST['u']) {
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
 <?
-print_head('Blink');
+$title = $path == $config['mole_path'] ? 'Blink' : 'Blunk';
+print_head($title);
 ?>  </head>
   <body>
     <div id="main">
-      <h1>Blink</h1>
 <?
 $subtitles = array(
   'Baby Shoes',
@@ -159,6 +159,7 @@ $subtitles = array(
 $subtitle = $subtitles[mt_rand(0, count($subtitles) - 1)];
 
 echo <<<EOF
+      <h1>$title</h1>
       <h2>$subtitle</h2>
 
 EOF;
@@ -258,7 +259,7 @@ EOF;
 ?>    </div>
 <?
 print_footer(
-  'Copyright &copy; 2015 Keegan Ryan and Will Yu',
+  'Copyright &copy; 2015 Will Yu',
   'A service of Blacker House'
 );
 ?>  </body>
