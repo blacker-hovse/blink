@@ -10,10 +10,14 @@ $config = array(
 include(__DIR__ . '/config.php');
 include(__DIR__ . '/../lib/include.php');
 
-function blink_long($short) {
-  global $pdo;
-
-  $result = $pdo->prepare('SELECT `long` FROM `blink` WHERE `short` = :short');
+function blink_long($pdo, $short) {
+  $result = $pdo->prepare(
+    <<<EOF
+SELECT `long`
+FROM `blink`
+WHERE `short` = :short
+EOF
+  );
 
   $result->execute(array(
     ':short' => $short
@@ -22,10 +26,14 @@ function blink_long($short) {
   return $result->fetch(PDO::FETCH_COLUMN);
 }
 
-function blink_short($long, $alphabet) {
-  global $pdo;
-
-  $result = $pdo->prepare('SELECT `short` FROM `blink` WHERE `long` = :long');
+function blink_short($pdo, $long, $alphabet) {
+  $result = $pdo->prepare(
+    <<<EOF
+SELECT `short`
+FROM `blink`
+WHERE `long` = :long
+EOF
+  );
 
   $result->execute(array(
     ':long' => $long
@@ -34,8 +42,31 @@ function blink_short($long, $alphabet) {
   $short = $result->fetch(PDO::FETCH_COLUMN);
 
   if (!$short) {
-    for ($i = (int) log((int) $pdo->query('SELECT COUNT(*) FROM `blink`')->fetch(PDO::FETCH_COLUMN) + 1, strlen($alphabet)) + 1; $pdo->query("SELECT COUNT(*) FROM `blink` WHERE LENGTH(`short`) > $i")->fetch(PDO::FETCH_COLUMN); $i++);
-    $result = $pdo->prepare('SELECT COUNT(*) FROM `blink` WHERE `short` = :short');
+    for (
+      $i = (int)log((int)$pdo->query(
+        <<<EOF
+SELECT COUNT(*)
+FROM `blink`
+EOF
+      )->fetch(PDO::FETCH_COLUMN) + 1, strlen($alphabet)) + 1;
+
+      $pdo->query(
+        <<<EOF
+SELECT COUNT(*)
+FROM `blink`
+WHERE LENGTH(`short`) > $i
+EOF
+      )->fetch(PDO::FETCH_COLUMN);
+      $i++
+    );
+
+    $result = $pdo->prepare(
+      <<<EOF
+SELECT COUNT(*)
+FROM `blink`
+WHERE `short` = :short
+EOF
+    );
 
     do {
       $short = substr(str_shuffle($alphabet), 0, $i);
@@ -45,7 +76,18 @@ function blink_short($long, $alphabet) {
       ));
     } while ($result->fetch(PDO::FETCH_COLUMN));
 
-    $result = $pdo->prepare('INSERT INTO `blink` (`long`, `short`) VALUES (:long, :short)');
+    $result = $pdo->prepare(
+      <<<EOF
+INSERT INTO `blink` (
+  `long`,
+  `short`
+)
+VALUES (
+  :long,
+  :short
+)
+EOF
+    );
 
     $result->execute(array(
       ':long' => $long,
@@ -56,18 +98,25 @@ function blink_short($long, $alphabet) {
   return $short;
 }
 
-function blink_view($short) {
-  global $pdo;
-
-  $result = $pdo->prepare('UPDATE `blink` SET `freq` = `freq` + 1 WHERE `short` = :short');
+function blink_view($pdo, $short) {
+  $result = $pdo->prepare(
+    <<<EOF
+UPDATE `blink`
+SET `freq` = `freq` + 1
+WHERE `short` = :short
+EOF
+  );
 
   $result->execute(array(
     ':short' => $short
   ));
 }
 
-if (@$_POST['type'] == 'human' or strpos($_SERVER['REQUEST_URI'], $config['human_path']) === 0) {
-  if ($_SERVER['REQUEST_METHOD'] == 'GET' and !isset($_GET['u'])) {
+if (
+  @$_POST['type'] == 'human' ||
+      strpos($_SERVER['REQUEST_URI'], $config['human_path']) === 0
+) {
+  if ($_SERVER['REQUEST_METHOD'] == 'GET' && !isset($_GET['u'])) {
     header('Location: ' . $config['mole_path']);
     die();
   }
@@ -97,8 +146,8 @@ EOF
 if (@$_REQUEST['u']) {
   if (@$_GET['u']) {
     if ($path == $config['mole_path']) {
-      if ($url = blink_long($_GET['u'])) {
-        blink_view($_GET['u']);
+      if ($url = blink_long($pdo, $_GET['u'])) {
+        blink_view($pdo, $_GET['u']);
         header('Location: ' . $url);
         die();
       }
@@ -113,11 +162,17 @@ if (@$_REQUEST['u']) {
       curl_setopt($ch, CURLOPT_POST, true);
       curl_setopt($ch, CURLOPT_POSTFIELDS, $fields);
       curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-      curl_setopt($ch, CURLOPT_URL, 'https://www.google.com/recaptcha/api/siteverify');
+
+      curl_setopt(
+        $ch,
+        CURLOPT_URL,
+        'https://www.google.com/recaptcha/api/siteverify'
+      );
+
       $response = json_decode(curl_exec($ch));
 
-      if ($response and $url = blink_long($_GET['u'])) {
-        blink_view($_GET['u']);
+      if ($response && $url = blink_long($pdo, $_GET['u'])) {
+        blink_view($pdo, $_GET['u']);
         die($url);
       } else {
         die('/bonus/');
@@ -125,12 +180,15 @@ if (@$_REQUEST['u']) {
     }
   }
 
-  if (@$_POST['u'] and $url = filter_input(INPUT_POST, 'u', FILTER_SANITIZE_URL)) {
+  if (
+    @$_POST['u'] &&
+        $url = filter_input(INPUT_POST, 'u', FILTER_SANITIZE_URL)
+  ) {
     if (!preg_match('/^\w+:\/\//', $url)) {
       $url = 'http://' . $url;
     }
 
-    $short = blink_short($url, $config['alphabet']);
+    $short = blink_short($pdo, $url, $config['alphabet']);
   }
 }
 ?><!DOCTYPE html>
@@ -175,7 +233,10 @@ if (@$_GET['u']) {
         };
 
         var onloadCallback = function() {
-          grecaptcha.render('captcha', {'callback': verifyCallback, 'sitekey': '$config[key]'});
+          grecaptcha.render('captcha', {
+            'callback': verifyCallback,
+            'sitekey': '$config[key]'
+          });
         };
       // ]]></script>
       <script type="text/javascript" src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit" async defer></script>
@@ -221,7 +282,8 @@ EOF;
   if ($short) {
     $s = @$_SERVER['HTTPS'] ? 's' : '';
     $label = 'Short URL';
-    $options = " value=\"http$s://$_SERVER[HTTP_HOST]$path?u=$short\" readonly=\"readonly\"";
+    $options =
+        " value=\"http$s://$_SERVER[HTTP_HOST]$path?u=$short\" readonly=\"readonly\"";
   } else {
     $label = 'Long URL';
     $options = <<<EOF
